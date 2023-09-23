@@ -15,6 +15,8 @@ contract DChat {
         string data;
     }
 
+    event NewMessage(Message m);
+
     mapping(address => string) public pub_keys;
 
     mapping(address => User) public users;
@@ -23,7 +25,7 @@ contract DChat {
 
     mapping(address => uint) public latest_timestamp;
 
-    public n_users;
+    uint public n_users;
 
     modifier onlyNew(){
         require(users[msg.sender].reg == false, "Address is already registered");
@@ -37,19 +39,33 @@ contract DChat {
     function registerUser(
         string memory _name,
         string memory _pubKey
-    ) public onlyNewUser {
+    ) public onlyNew {
         n_users++;
         users[msg.sender] = User(_name, msg.sender, true, 0);
         pub_keys[msg.sender] = _pubKey;
     }
 
-    function fetchPubKey(address to) public onlyRegistered returns(string memory) {
+    function fetchPubKey(address to) public view onlyRegistered returns(string memory) {
         require(users[to].reg == true, "Recipient is not a registered user");
         return pub_keys[to];
     }
 
-    function sendMessage(address from, address to, string data) public onlyRegistered {
-        Message memory temp = Message(from, to, data)
+    function sendMessage(address to, string memory data) public onlyRegistered {
+        Message memory temp = Message(msg.sender, to, data);
+
+        messages[msg.sender].push(temp);
+        messages[to].push(temp);
+        users[msg.sender].n_msgs++;
+        users[to].n_msgs++;
+        emit NewMessage(temp);
+    }
+
+    function fetchMessageCount() public view onlyRegistered returns(uint) {
+        return users[msg.sender].n_msgs;
+    }
+
+    function fetchMessages() public view onlyRegistered returns(Message[] memory) {
+        return messages[msg.sender];
     }
 
 }
