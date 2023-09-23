@@ -17,7 +17,7 @@ Ensure you have reviewed the [Rules & FAQ](https://hackmidwest.com/#faq)
 
 _List the full names, email address & Github username of your teammates_
 
-1.  **Jayanth Madupalli** || **jayanth8644@missouristate.edu** || **Github Username**
+1.  **Jayanth Madupalli** || **jayanth8644@missouristate.edu** || **jmadupalli**
 2.
 3.
 4.
@@ -41,12 +41,12 @@ Using asymmetric encryption, solidity, ethereum, and pinata.
 
 _See hackmidwest.com/#prizes for challenge details_
 
-- [*] Pinata Web3 Challenge
-- [*] Pinata Challenge
+- [x] Pinata Web3 Challenge
+- [x] Pinata Challenge
 - [ ] Pinata ERC-6551 Challenge
 - [ ] Okta Challenge
 - [ ] GEHA Generative AI Emergency Response Challenge
 - [ ] Corporate Challenge (only for official company teams)
-- [*] College Challenge (only for teams of up to 5 CS students from the same school)
+- [x] College Challenge (only for teams of up to 5 CS students from the same school)
 
 <br /><br />
