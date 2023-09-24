@@ -1,0 +1,29 @@
+Rename example.env to .env, and provide values accordingly.
+
+Use npm to install all the dependencies for the project ('npm install').
+
+Hardhat:
+
+Run hardhat node using: npx hardhat node
+Deploy DChat.sol using: npx hardhat run scripts/deploy.cjs --network localhost
+
+Make sure the hardhat node is kept running.
+
+Once deployed, make sure the .env file has the correct contract address.
+
+React client:
+
+Use 'npm run dev' to start the react client.
+
+Enter name, the wallet you want to login as, do the same for another wallet to act as a recipient.
+
+A lot of user info is saved within the localStorage of the browser linked to wallet address. Test it out!
+
+Implementation Details:
+My initial idea was to have a separate backend, and just use blockchain to verify the integrity of the message.
+Alas! With a team of one, that didn't seem feasible for a hackathon setting. So instead chose to only use blockchain without
+any other backend, this is a pure dApp as of now. 
+Messages are encrypted using asymmetric encryption based on ether key-pairs (a new set of keys for this dApp), public key is stored 
+in the smart contract, private key in your browser's local storage.
+Messages are encrypted using the recipients' public key retrieved from the smart contract, messages are sent and delivered over blockchain.
+The react client listens on new message events to retrieve the message, fetchMessages() is implemented to fetch messages while offline.
