@@ -15,6 +15,11 @@ contract DChat {
         string data;
     }
 
+    struct RegCheck {
+        bool status;
+        string name;
+    }
+
     event NewMessage(Message m);
 
     mapping(address => string) public pub_keys;
@@ -34,6 +39,13 @@ contract DChat {
     modifier onlyRegistered() {
         require(users[msg.sender].reg == true, "User must be registered");
         _;
+    }
+
+    function isRegistered(address user) public view returns (RegCheck memory) {
+        if(users[user].reg == true){
+            return RegCheck(true, users[user].name);
+        }
+        return RegCheck(false, users[user].name);
     }
 
     function registerUser(

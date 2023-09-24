@@ -5,11 +5,8 @@ async function main() {
   const DChat = await ethers.getContractFactory("DChat");
   const DChat_F = await DChat.deploy();
 
-  await DChat_F.waitForDeployment();
-
-  console.log(await DChat_F.getAddress());
+  console.log(DChat_F.target);
 }
-
 main().catch((err) => {
   console.error(err);
 });
