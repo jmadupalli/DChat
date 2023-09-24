@@ -20,6 +20,8 @@ import DChat from "../../artifacts/contracts/DChat.sol/DChat.json";
 
 import "react-toastify/dist/ReactToastify.css";
 
+import axios from "axios";
+
 export default function Chat({ uname, provider, signer }) {
   const contractAddress = import.meta.env.VITE_Contract_Address;
 
@@ -40,6 +42,8 @@ export default function Chat({ uname, provider, signer }) {
   const [mBox, setMBox] = useState("");
 
   const [subbed, setSubbed] = useState(false);
+
+  const [fileInp, setFileIinp] = useState(null);
 
   const subscribeToEvents = async () => {
     if (contract && privKey && !subbed) {
@@ -75,6 +79,24 @@ export default function Chat({ uname, provider, signer }) {
           });
         }
       });
+    }
+  };
+
+  const sendToIPFS = async (e) => {
+    if (fileInp) {
+      const formData = new FormData();
+      formData.append("file", fileInp);
+
+      const res = await axios({
+        method: "post",
+        url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        data: formData,
+        headers: {
+          "Content-Type": `multipart/form-data; boundary=${formData._boundary}`,
+          Authorization: `Bearer ${import.meta.env.VITE_PINATA_API}`,
+        },
+      });
+      sendMessage(true, res.data.IpfsHash);
     }
   };
 
@@ -190,18 +212,26 @@ export default function Chat({ uname, provider, signer }) {
     }
   };
 
-  const sendMessage = async () => {
+  const sendMessage = async (isFile = false, ipfsHash = null) => {
     const encrypted = await EthCrypto.encryptWithPublicKey(
       recipients[currR].pubKey,
-      mBox
+      !isFile ? mBox : ipfsHash
     );
-    const message = {
-      from: signer.address,
-      to: currR,
-      type: "text",
-      timestamp: Date.now(),
-      msg: mBox,
-    };
+    const message = !isFile
+      ? {
+          from: signer.address,
+          to: currR,
+          type: "text",
+          timestamp: Date.now(),
+          msg: mBox,
+        }
+      : {
+          from: signer.address,
+          to: currR,
+          type: "file",
+          timestamp: Date.now(),
+          msg: ipfsHash,
+        };
     setRecipients((prev) => {
       return {
         ...prev,
@@ -322,10 +352,10 @@ export default function Chat({ uname, provider, signer }) {
 
             {currR &&
               recipients[currR]?.messages?.length > 0 &&
-              recipients[currR].messages.map((msg) => (
+              recipients[currR].messages.map((msg, index) => (
                 <>
                   {msg.from == signer.address ? (
-                    <li className="d-flex mb-4">
+                    <li key={index} className="d-flex mb-4">
                       <MDBIcon
                         className="fa-3x"
                         icon="user-circle"
@@ -344,12 +374,32 @@ export default function Chat({ uname, provider, signer }) {
                           </p>
                         </MDBCardHeader>
                         <MDBCardBody>
-                          <p className="mb-0">{msg.msg}</p>
+                          <p className="mb-0">
+                            {msg.type === "text" ? (
+                              msg.msg
+                            ) : (
+                              <>
+                                You sent a file through Pinata:
+                                <a
+                                  href={
+                                    import.meta.env.VITE_PINATA_GATEWAY +
+                                    msg.msg
+                                  }
+                                  target="_blank"
+                                >
+                                  Click here to open
+                                </a>{" "}
+                              </>
+                            )}
+                          </p>
                         </MDBCardBody>
                       </MDBCard>
                     </li>
                   ) : (
-                    <li className="d-flex justify-content-between mb-4">
+                    <li
+                      key={index}
+                      className="d-flex justify-content-between mb-4"
+                    >
                       <MDBCard className="w-100">
                         <MDBCardHeader className="d-flex justify-content-between p-3">
                           <p className="fw-bold mb-0">
@@ -361,7 +411,24 @@ export default function Chat({ uname, provider, signer }) {
                           </p>
                         </MDBCardHeader>
                         <MDBCardBody>
-                          <p className="mb-0">{msg.msg}</p>
+                          <p className="mb-0">
+                            {msg.type === "text" ? (
+                              msg.msg
+                            ) : (
+                              <>
+                                You received a file through Pinata:
+                                <a
+                                  href={
+                                    import.meta.env.VITE_PINATA_GATEWAY +
+                                    msg.msg
+                                  }
+                                  target="_blank"
+                                >
+                                  Click here to open
+                                </a>{" "}
+                              </>
+                            )}
+                          </p>
                         </MDBCardBody>
                       </MDBCard>
                       <MDBIcon
@@ -395,6 +462,14 @@ export default function Chat({ uname, provider, signer }) {
             >
               Send
             </MDBBtn>
+            <input
+              type="file"
+              onChange={(e) => setFileIinp(e.target.files[0])}
+              id="button-file"
+            />
+            <button className="btn btn-info" onClick={() => sendToIPFS()}>
+              Send File
+            </button>
           </div>
         </MDBCol>
       </MDBRow>
