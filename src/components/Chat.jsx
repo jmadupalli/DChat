@@ -379,7 +379,7 @@ export default function Chat({ uname, provider, signer }) {
                               msg.msg
                             ) : (
                               <>
-                                You sent a file through Pinata:
+                                You sent a file through Pinata: <br />
                                 <a
                                   href={
                                     import.meta.env.VITE_PINATA_GATEWAY +
@@ -416,7 +416,7 @@ export default function Chat({ uname, provider, signer }) {
                               msg.msg
                             ) : (
                               <>
-                                You received a file through Pinata:
+                                You received a file through Pinata: <br />
                                 <a
                                   href={
                                     import.meta.env.VITE_PINATA_GATEWAY +
