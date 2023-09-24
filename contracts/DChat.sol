@@ -20,6 +20,11 @@ contract DChat {
         string name;
     }
 
+    struct UInfo {
+        string uname;
+        string pubKey;
+    }
+
     event NewMessage(Message m);
 
     mapping(address => string) public pub_keys;
@@ -45,7 +50,7 @@ contract DChat {
         if(users[user].reg == true){
             return RegCheck(true, users[user].name);
         }
-        return RegCheck(false, users[user].name);
+        return RegCheck(false, '');
     }
 
     function registerUser(
@@ -57,9 +62,9 @@ contract DChat {
         pub_keys[msg.sender] = _pubKey;
     }
 
-    function fetchPubKey(address to) public view onlyRegistered returns(string memory) {
+    function fetchPubKey(address to) public view onlyRegistered returns(UInfo memory) {
         require(users[to].reg == true, "Recipient is not a registered user");
-        return pub_keys[to];
+        return UInfo(users[to].name, pub_keys[to]);
     }
 
     function sendMessage(address to, string memory data) public onlyRegistered {

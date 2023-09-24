@@ -9,7 +9,7 @@ const Register = () => {
   const [accounts, setAccounts] = useState([]);
   const [signer, setSigner] = useState(null);
   const [showChat, setShowChat] = useState(false);
-  const [name, setName] = useState("");
+  const [uname, setuName] = useState("");
 
   const connectWeb3 = async () => {
     const provider = new ethers.JsonRpcProvider("http://localhost:8545");
@@ -40,7 +40,7 @@ const Register = () => {
             style={{ width: "400px", margin: "auto" }}
             className="form-control mb-1"
             placeholder="Enter your name"
-            onChange={setName}
+            onChange={(e) => setuName(e.target.value)}
           />
           <div
             style={{
@@ -68,7 +68,7 @@ const Register = () => {
           </div>
         </div>
       )}
-      {showChat && <Chat name={name} provider={provider} signer={signer} />}
+      {showChat && <Chat uname={uname} provider={provider} signer={signer} />}
     </>
   );
 };

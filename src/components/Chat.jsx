@@ -20,7 +20,7 @@ import DChat from "../../artifacts/contracts/DChat.sol/DChat.json";
 
 import "react-toastify/dist/ReactToastify.css";
 
-export default function Chat({ name, provider, signer }) {
+export default function Chat({ uname, provider, signer }) {
   const contractAddress = import.meta.env.VITE_Contract_Address;
 
   const [privKey, setPrivKey] = useState(null);
@@ -28,6 +28,55 @@ export default function Chat({ name, provider, signer }) {
   const parentMessages = [];
 
   const [contract, setContract] = useState(null);
+
+  const [recipients, setRecipients] = useState(() =>
+    JSON.parse(localStorage.getItem("recipients_" + signer.address))
+      ? JSON.parse(localStorage.getItem("recipients_" + signer.address))
+      : {}
+  );
+
+  const [currR, setCurrR] = useState(null);
+
+  const [mBox, setMBox] = useState("");
+
+  const [subbed, setSubbed] = useState(false);
+
+  const subscribeToEvents = async () => {
+    if (contract && privKey && !subbed) {
+      contract.on("NewMessage", async (message) => {
+        setSubbed(() => true);
+        if (message[1] == signer.address) {
+          const sender = message[0];
+          const actMessage = JSON.parse(message[2]);
+          const msg = await EthCrypto.decryptWithPrivateKey(
+            privKey,
+            actMessage.msg
+          );
+          actMessage["msg"] = msg;
+          const recipInfo = await contract.fetchPubKey(sender);
+          setRecipients((prev) => {
+            return !(sender in prev)
+              ? {
+                  ...prev,
+                  [sender]: {
+                    uname: recipInfo[0],
+                    pubKey: recipInfo[1],
+                    address: sender,
+                    messages: [actMessage],
+                  },
+                }
+              : {
+                  ...prev,
+                  [sender]: {
+                    ...prev[sender],
+                    messages: [...prev[sender].messages, actMessage],
+                  },
+                };
+          });
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     const connectToContract = async () => {
@@ -43,19 +92,131 @@ export default function Chat({ name, provider, signer }) {
         const isRegistered = await contract.isRegistered(signer.address);
         if (isRegistered[0] === false) {
           const { publicKey, privateKey } = EthCrypto.createIdentity();
-          setPrivKey(privateKey);
-          await contract.registerUser(name, publicKey);
-          toast.info("Registered with the smart contract", {
+          setPrivKey(() => privateKey);
+          localStorage.setItem(signer.address, privateKey);
+          await contract.registerUser(uname, publicKey);
+          toast.info(`${uname}, Registered with the smart contract`, {
             closeOnClick: false,
           });
+        } else {
+          if (localStorage.getItem(signer.address) != null) {
+            setPrivKey(() => localStorage.getItem(signer.address));
+          } else toast.error("Private key not found, app won't work");
         }
       }
     };
+
     registerUser();
   }, [contract]);
 
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (contract) {
+        const messages = await contract.fetchMessages();
+        const t_recipients = {};
+
+        for (const message of messages) {
+          if (message[1] === signer.address) {
+            const sender = message[0];
+            const actMessage = JSON.parse(message[2]);
+            const msg = await EthCrypto.decryptWithPrivateKey(
+              privKey,
+              actMessage.msg
+            );
+            actMessage["msg"] = msg;
+            if (!t_recipients[sender]) {
+              const recipInfo = await contract.fetchPubKey(sender);
+              t_recipients[sender] = {
+                uname: recipInfo[0],
+                pubKey: recipInfo[1],
+                address: sender,
+                messages: [actMessage],
+              };
+            } else {
+              t_recipients[sender].messages.push(actMessage);
+            }
+
+            setRecipients(t_recipients);
+          }
+        }
+      }
+    };
+
+    subscribeToEvents();
+
+    return () => {
+      if (contract) {
+        contract.removeAllListeners();
+      }
+    };
+    //fetchMessages();
+  }, [privKey]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "recipients_" + signer.address,
+      JSON.stringify(recipients)
+    );
+  }, [recipients]);
+
   const revealPrivKey = () => {
     toast.info(privKey);
+  };
+
+  const addNewChat = async (e) => {
+    if (e.key === "Enter") {
+      const recipient = e.target.value;
+      if (!(recipient in recipients)) {
+        const isRegistered = await contract.isRegistered(recipient);
+        if (isRegistered[0] === false)
+          toast.error("Recipient is not registered");
+        else {
+          const pubKey = (await contract.fetchPubKey(recipient))[1];
+          console.log(pubKey);
+          setRecipients((recipients) => {
+            return {
+              ...recipients,
+              [recipient]: {
+                uname: isRegistered[1],
+                pubKey,
+                address: recipient,
+                messages: [],
+              },
+            };
+          });
+        }
+        setCurrR(() => recipient);
+      }
+    }
+  };
+
+  const sendMessage = async () => {
+    const encrypted = await EthCrypto.encryptWithPublicKey(
+      recipients[currR].pubKey,
+      mBox
+    );
+    const message = {
+      from: signer.address,
+      to: currR,
+      type: "text",
+      timestamp: Date.now(),
+      msg: mBox,
+    };
+    setRecipients((prev) => {
+      return {
+        ...prev,
+        [currR]: {
+          ...prev[currR],
+          messages: [...prev[currR].messages, message],
+        },
+      };
+    });
+
+    await contract
+      .sendMessage(currR, JSON.stringify({ ...message, msg: encrypted }))
+      .catch((err) => toast.error(err));
+
+    setMBox("");
   };
 
   return (
@@ -75,111 +236,73 @@ export default function Chat({ name, provider, signer }) {
 
           <MDBCard style={{ maxHeight: "100%", marginBottom: "50px" }}>
             <MDBCardBody>
-              <p>Connected with: {signer.address}</p>
+              <p>
+                <b>Connected with: </b> {signer.address} <br />
+                <b>Your Name: </b> {uname} <br />
+                <button
+                  className="btn btn-primary m-2"
+                  onClick={() => revealPrivKey()}
+                >
+                  Show Private Key
+                </button>
+              </p>
+
               <input
-                className="form-control"
-                placeholder="Enter Recipient address"
+                className="form-control mb-3"
+                placeholder="Enter Recipient address, and hit ENTER"
+                onKeyUp={addNewChat}
               />
-              <button className="btn btn-primary m-2">New Chat</button>
-              <button
-                className="btn btn-primary m-2"
-                onClick={() => revealPrivKey()}
-              >
-                Show Private Key
-              </button>
+
               <MDBTypography
                 listUnStyled
                 className="overflow-auto"
                 style={{ maxHeight: "85%" }}
               >
-                <li
-                  className="p-2 border-bottom "
-                  style={{ backgroundColor: "#eee" }}
-                >
-                  <a href="#!" className="d-flex justify-content-between">
-                    <div className="d-flex flex-row">
-                      <img
-                        src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-8.webp"
-                        alt="avatar"
-                        className="rounded-circle d-flex align-self-center me-3 shadow-1-strong"
-                        width="60"
-                      />
-                      <div className="pt-1">
-                        <p className="fw-bold mb-0">John Doe</p>
-                        <p className="small text-muted">
-                          Hello, Are you there?
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <p className="small text-muted mb-1">Just now</p>
-                      <span className="badge bg-danger float-end">1</span>
-                    </div>
-                  </a>
-                </li>
-                <li className="p-2 border-bottom">
-                  <a href="#!" className="d-flex justify-content-between">
-                    <div className="d-flex flex-row">
-                      <img
-                        src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-1.webp"
-                        alt="avatar"
-                        className="rounded-circle d-flex align-self-center me-3 shadow-1-strong"
-                        width="60"
-                      />
-                      <div className="pt-1">
-                        <p className="fw-bold mb-0">Danny Smith</p>
-                        <p className="small text-muted">
-                          Lorem ipsum dolor sit.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <p className="small text-muted mb-1">5 mins ago</p>
-                    </div>
-                  </a>
-                </li>
-                <li className="p-2 border-bottom">
-                  <a href="#!" className="d-flex justify-content-between">
-                    <div className="d-flex flex-row">
-                      <img
-                        src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-2.webp"
-                        alt="avatar"
-                        className="rounded-circle d-flex align-self-center me-3 shadow-1-strong"
-                        width="60"
-                      />
-                      <div className="pt-1">
-                        <p className="fw-bold mb-0">Alex Steward</p>
-                        <p className="small text-muted">
-                          Lorem ipsum dolor sit.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <p className="small text-muted mb-1">Yesterday</p>
-                    </div>
-                  </a>
-                </li>
-                <li className="p-2 border-bottom">
-                  <a href="#!" className="d-flex justify-content-between">
-                    <div className="d-flex flex-row">
-                      <img
-                        src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-3.webp"
-                        alt="avatar"
-                        className="rounded-circle d-flex align-self-center me-3 shadow-1-strong"
-                        width="60"
-                      />
-                      <div className="pt-1">
-                        <p className="fw-bold mb-0">Ashley Olsen</p>
-                        <p className="small text-muted">
-                          Lorem ipsum dolor sit.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-1">
-                      <p className="small text-muted mb-1">Yesterday</p>
-                    </div>
-                  </a>
-                </li>
+                {Object.keys(recipients).map((r) => {
+                  return (
+                    <li
+                      onClick={() => setCurrR(r)}
+                      key={r}
+                      className="p-2 border-bottom "
+                      style={{
+                        backgroundColor: r === currR ? "#eee" : "#fff",
+                      }}
+                    >
+                      <a href="#!" className="d-flex justify-content-between">
+                        <div className="d-flex flex-row">
+                          <MDBIcon
+                            className="fa-3x"
+                            far
+                            icon="user-circle"
+                            style={{
+                              width: "50px",
+                              color: "#333",
+                              margin: "10px",
+                            }}
+                          />
+
+                          <div className="pt-1">
+                            <p className="fw-bold mb-0">
+                              {recipients[r].uname}
+                            </p>
+                            <p className="small text-muted">
+                              {/* {recipients[r].messages?.length > 0
+                                ? recipients[r].messages[
+                                    recipients[r].messages.length - 1
+                                  ].msg?.substring(0, 30) + "..."
+                                : "..."} */}
+                              ...
+                            </p>
+                          </div>
+                        </div>
+                        <div className="pt-1">
+                          <p className="small text-muted mb-1">--</p>
+                          <span className="badge bg-danger float-end"></span>
+                        </div>
+                      </a>
+                    </li>
+                  );
+                })}
               </MDBTypography>
             </MDBCardBody>
           </MDBCard>
@@ -190,143 +313,70 @@ export default function Chat({ name, provider, signer }) {
             listUnStyled
             style={{ height: "80%", overflowY: "auto" }}
           >
-            <li className="d-flex justify-content-between mb-4">
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
-                width="60"
-              />
-              <MDBCard>
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Brad Pitt</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 12 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-            </li>
-            <li className="d-flex justify-content-between mb-4">
-              <MDBCard className="w-100">
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Lara Croft</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 13 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Sed ut perspiciatis unde omnis iste natus error sit
-                    voluptatem accusantium doloremque laudantium.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-5.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start ms-3 shadow-1-strong"
-                width="60"
-              />
-            </li>
-            <li className="d-flex justify-content-between mb-4">
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
-                width="60"
-              />
-              <MDBCard>
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Brad Pitt</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 10 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-            </li>
-            <li className="d-flex justify-content-between mb-4">
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
-                width="60"
-              />
-              <MDBCard>
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Brad Pitt</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 10 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-            </li>
-            <li className="d-flex justify-content-between mb-4">
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
-                width="60"
-              />
-              <MDBCard>
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Brad Pitt</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 10 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-            </li>
-            <li className="d-flex justify-content-between mb-4">
-              <img
-                src="https://mdbcdn.b-cdn.net/img/Photos/Avatars/avatar-6.webp"
-                alt="avatar"
-                className="rounded-circle d-flex align-self-start me-3 shadow-1-strong"
-                width="60"
-              />
-              <MDBCard>
-                <MDBCardHeader className="d-flex justify-content-between p-3">
-                  <p className="fw-bold mb-0">Brad Pitt</p>
-                  <p className="text-muted small mb-0">
-                    <MDBIcon far icon="clock" /> 10 mins ago
-                  </p>
-                </MDBCardHeader>
-                <MDBCardBody>
-                  <p className="mb-0">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
-                    do eiusmod tempor incididunt ut labore et dolore magna
-                    aliqua.
-                  </p>
-                </MDBCardBody>
-              </MDBCard>
-            </li>
+            {(!currR || recipients[currR]?.messages?.length == 0) && (
+              <p style={{ padding: "30px", textAlign: "center" }}>
+                {" "}
+                No messages yet!
+              </p>
+            )}
+
+            {currR &&
+              recipients[currR]?.messages?.length > 0 &&
+              recipients[currR].messages.map((msg) => (
+                <>
+                  {msg.from == signer.address ? (
+                    <li className="d-flex mb-4">
+                      <MDBIcon
+                        className="fa-3x"
+                        icon="user-circle"
+                        style={{
+                          width: "50px",
+                          color: "#333",
+                          margin: "10px",
+                        }}
+                      />
+                      <MDBCard style={{ width: "80%" }}>
+                        <MDBCardHeader className="d-flex justify-content-between p-3">
+                          <p className="fw-bold mb-0">{uname}</p>
+                          <p className="text-muted small mb-0">
+                            <MDBIcon far icon="clock" />{" "}
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </p>
+                        </MDBCardHeader>
+                        <MDBCardBody>
+                          <p className="mb-0">{msg.msg}</p>
+                        </MDBCardBody>
+                      </MDBCard>
+                    </li>
+                  ) : (
+                    <li className="d-flex justify-content-between mb-4">
+                      <MDBCard className="w-100">
+                        <MDBCardHeader className="d-flex justify-content-between p-3">
+                          <p className="fw-bold mb-0">
+                            {recipients[currR].uname}
+                          </p>
+                          <p className="text-muted small mb-0">
+                            <MDBIcon far icon="clock" />{" "}
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </p>
+                        </MDBCardHeader>
+                        <MDBCardBody>
+                          <p className="mb-0">{msg.msg}</p>
+                        </MDBCardBody>
+                      </MDBCard>
+                      <MDBIcon
+                        className="fa-3x"
+                        icon="user-circle"
+                        style={{
+                          width: "50px",
+                          color: "#333",
+                          margin: "10px",
+                        }}
+                      />
+                    </li>
+                  )}
+                </>
+              ))}
           </MDBTypography>
           <div style={{ height: "20%" }}>
             <MDBTextArea
@@ -334,8 +384,15 @@ export default function Chat({ name, provider, signer }) {
               label="Message"
               id="textAreaExample"
               rows={4}
+              onChange={(e) => setMBox(e.target.value)}
+              value={mBox}
             />
-            <MDBBtn color="info" rounded className="float-end">
+            <MDBBtn
+              onClick={(e) => sendMessage()}
+              color="info"
+              rounded
+              className="float-end"
+            >
               Send
             </MDBBtn>
           </div>
@@ -352,7 +409,7 @@ export default function Chat({ name, provider, signer }) {
         draggable
         pauseOnHover
         theme="dark"
-      />{" "}
+      />
     </MDBContainer>
   );
 }
