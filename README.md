@@ -1,36 +1,6 @@
-# Welcome to Hack Midwest 2023!
-
+## DChat - Decentralized Chat (https://dchat.jayanthm.in - deployed on Sepolia testnet)
 <br /><br />
 
-## Getting Started
-
-Ensure you have reviewed the [Rules & FAQ](https://hackmidwest.com/#faq)
-
-1. Clone this repository and rename to the name of your app or idea
-2. Make it **private**
-3. Add pr@kcitp.com as a user
-4. Populate the Team, App & Challenges info below and update as needed
-
-<br /><br />
-
-## Who's on your team?
-
-_List the full names, email address & Github username of your teammates_
-
-1.  **Jayanth Madupalli** || **jayanth8644@missouristate.edu** || **jmadupalli** (flew solo, indeed!)
-2.
-3.
-4.
-5.
-
-<br /><br />
-
-## What is the name of your App?
-
-DChat - Decentralized Chat
-<br /><br />
-
-## What does your app do?
 
 This application addresses the two biggest concerns involving Web 2.0 messaging apps.
 
@@ -54,7 +24,7 @@ Ideally, this process should be done using WebSockets and an actual backend with
 
 ### React Client:
 
-The user does not directly interact with the blockchain/smart contract himself, It is done through the React client. React UI is connected to our hardhat local node which then interacts with the smart contract using the EthersJS library based on user interactions.
+The user does not directly interact with the blockchain/smart contract himself, It is done through the React client. React UI is connected to the blockchain network using web3modal (exposes wallet provider), and the smart contract invocations using the EthersJS library based on user interactions.
 We lookup the user name based on recipients address, and fetch the user's public key on the client. We encrypt and decrypt messages using public key, and private key on the react side as well.
 
 ### File Sharing (Pinata):
@@ -74,18 +44,3 @@ Blockchain characteristics make sure there is no mutation, there is no probable 
 ### Summary:
 
 This is a great way to utilize web 3.0, and based on the targeted user base, some changes can be easily made to ensure some level of scalability. This application provides the ability to securely chat with another individual while ensuring integrity of the messages as well. Moreover, the application also supports file sharing using Pinata, a decentralized file sharing service!
-<br /><br />
-
-## What challenges are you building for? SELECT ALL THAT APPLY
-
-_See hackmidwest.com/#prizes for challenge details_
-
-- [x] Pinata Web3 Challenge
-- [x] Pinata Challenge
-- [ ] Pinata ERC-6551 Challenge
-- [ ] Okta Challenge
-- [ ] GEHA Generative AI Emergency Response Challenge
-- [ ] Corporate Challenge (only for official company teams)
-- [x] College Challenge (only for teams of up to 5 CS students from the same school)
-
-<br /><br />
