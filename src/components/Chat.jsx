@@ -16,13 +16,11 @@ import { ethers } from "ethers";
 
 import EthCrypto from "eth-crypto";
 
-import DChat from "../../artifacts/contracts/DChat.sol/DChat.json";
-
-import "react-toastify/dist/ReactToastify.css";
+import DChat from "../../contracts/DChat.json";
 
 import axios from "axios";
 
-export default function Chat({ uname, provider, signer }) {
+export default function Chat({ uname, setuName, provider, signer }) {
   const contractAddress = import.meta.env.VITE_Contract_Address;
 
   const [privKey, setPrivKey] = useState(null);
@@ -61,21 +59,21 @@ export default function Chat({ uname, provider, signer }) {
           setRecipients((prev) => {
             return !(sender in prev)
               ? {
-                  ...prev,
-                  [sender]: {
-                    uname: recipInfo[0],
-                    pubKey: recipInfo[1],
-                    address: sender,
-                    messages: [actMessage],
-                  },
-                }
+                ...prev,
+                [sender]: {
+                  uname: recipInfo[0],
+                  pubKey: recipInfo[1],
+                  address: sender,
+                  messages: [actMessage],
+                },
+              }
               : {
-                  ...prev,
-                  [sender]: {
-                    ...prev[sender],
-                    messages: [...prev[sender].messages, actMessage],
-                  },
-                };
+                ...prev,
+                [sender]: {
+                  ...prev[sender],
+                  messages: [...prev[sender].messages, actMessage],
+                },
+              };
           });
         }
       });
@@ -102,7 +100,7 @@ export default function Chat({ uname, provider, signer }) {
 
   useEffect(() => {
     const connectToContract = async () => {
-      const contractF = new ethers.Contract(contractAddress, DChat.abi, signer);
+      const contractF = new ethers.Contract(contractAddress, DChat, signer);
       setContract(contractF);
     };
     connectToContract();
@@ -121,6 +119,7 @@ export default function Chat({ uname, provider, signer }) {
             closeOnClick: false,
           });
         } else {
+          setuName(() => isRegistered[1]);
           if (localStorage.getItem(signer.address) != null) {
             setPrivKey(() => localStorage.getItem(signer.address));
           } else toast.error("Private key not found, app won't work");
@@ -219,19 +218,19 @@ export default function Chat({ uname, provider, signer }) {
     );
     const message = !isFile
       ? {
-          from: signer.address,
-          to: currR,
-          type: "text",
-          timestamp: Date.now(),
-          msg: mBox,
-        }
+        from: signer.address,
+        to: currR,
+        type: "text",
+        timestamp: Date.now(),
+        msg: mBox,
+      }
       : {
-          from: signer.address,
-          to: currR,
-          type: "file",
-          timestamp: Date.now(),
-          msg: ipfsHash,
-        };
+        from: signer.address,
+        to: currR,
+        type: "file",
+        timestamp: Date.now(),
+        msg: ipfsHash,
+      };
     setRecipients((prev) => {
       return {
         ...prev,
@@ -473,18 +472,7 @@ export default function Chat({ uname, provider, signer }) {
           </div>
         </MDBCol>
       </MDBRow>
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
+
     </MDBContainer>
   );
 }

@@ -5,5 +5,16 @@ import { nodePolyfills } from "vite-plugin-node-polyfills";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), nodePolyfills()],
-  optimizeDeps: { exclude: ["@nomicfoundation/solidity-analyzer"] },
+  build: {
+    rollupOptions: {
+      plugins: [
+        // ↓ Needed for build
+        nodePolyfills()
+      ]
+    },
+    // ↓ Needed for build if using WalletConnect and other providers
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  }
 });
