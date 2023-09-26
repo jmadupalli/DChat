@@ -2,15 +2,6 @@ Rename example.env to .env, and provide values accordingly.
 
 Use npm to install all the dependencies for the project ('npm install').
 
-Hardhat:
-
-Run hardhat node using: npx hardhat node
-Deploy DChat.sol using: npx hardhat run scripts/deploy.cjs --network localhost
-
-Make sure the hardhat node is kept running.
-
-Once deployed, make sure the .env file has the correct contract address.
-
 React client:
 
 Use 'npm run dev' to start the react client.
