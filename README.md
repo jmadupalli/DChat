@@ -1,6 +1,4 @@
-## DChat - Decentralized Chat (https://dchat.jayanthm.in - deployed on Sepolia testnet)
-<br /><br />
-
+## DChat (https://dchat.jayanthm.in - Sepolia testnet)
 
 This application addresses the two biggest concerns involving Web 2.0 messaging apps.
 
